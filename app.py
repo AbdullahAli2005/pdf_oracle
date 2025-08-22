@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env 
 import os
 import io
 from typing import List, Tuple
@@ -20,17 +20,11 @@ from langchain_google_genai import (
 from htmlTemplates import css, bot_template, user_template, app_header
 
 
-# -----------------------------
-# Helpers
-# -----------------------------
 def file_digest(content: bytes) -> str:
     import hashlib
     return hashlib.sha1(content).hexdigest()[:10]
 
 
-# -----------------------------
-# PDF -> Document extraction
-# -----------------------------
 def prepare_pdfs(uploaded) -> List[dict]:
     prepared = []
     for up in uploaded:
@@ -42,7 +36,7 @@ def prepare_pdfs(uploaded) -> List[dict]:
 def extract_documents(prepared) -> Tuple[List[Document], int]:
     docs: List[Document] = []
     total_pages = 0
-    # Count pages
+    #count pages
     for item in prepared:
         reader = PdfReader(io.BytesIO(item["bytes"]))
         total_pages += len(reader.pages)
@@ -68,9 +62,7 @@ def extract_documents(prepared) -> Tuple[List[Document], int]:
     return docs, total_pages
 
 
-# -----------------------------
-# Chunking & Vector Store
-# -----------------------------
+#chunking + vectorstore
 def chunk_documents(page_docs: List[Document], chunk_size: int, chunk_overlap: int) -> List[Document]:
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
@@ -86,9 +78,7 @@ def build_vectorstore(chunked_docs: List[Document]):
     return FAISS.from_documents(documents=chunked_docs, embedding=embeddings)
 
 
-# -----------------------------
-# LLM & Chain
-# -----------------------------
+#LLM + chain
 def build_chain(vectorstore, model_name: str, temperature: float, top_k: int):
     llm = ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
     memory = ConversationBufferMemory(
@@ -117,7 +107,7 @@ def render_sources(source_documents):
         src = meta.get("source", "PDF")
         page = meta.get("page", "?")
         chips.append(f'<span class="chip" title="Page {page}">{src} · p.{page}</span>')
-    # Deduplicate keep order
+    #deduplicate keep order
     seen, uniq = set(), []
     for c in chips:
         if c not in seen:
@@ -138,9 +128,6 @@ def render_message(role: str, content: str):
     st.write(template.replace("{{MSG}}", content), unsafe_allow_html=True)
 
 
-# -----------------------------
-# Streamlit App
-# -----------------------------
 def main():
     load_dotenv()
     st.set_page_config(
@@ -150,11 +137,9 @@ def main():
         initial_sidebar_state="expanded",
     )
 
-    # Global CSS & Header
     st.write(css, unsafe_allow_html=True)
     st.markdown(app_header, unsafe_allow_html=True)
 
-    # ---- Session State ----
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
     if "chat_history" not in st.session_state:
@@ -164,7 +149,6 @@ def main():
     if "last_sources" not in st.session_state:
         st.session_state.last_sources = []
 
-    # ---- Sidebar Controls ----
     with st.sidebar:
         st.subheader("📄 Your documents")
         uploaded = st.file_uploader(
@@ -229,7 +213,7 @@ def main():
                             )
                             st.balloons()
 
-    # ---- Main Chat Area ----
+    # main app
     st.header("Chat with your PDFs")
     st.caption("Ask questions and cite-backed answers will appear below.")
 
