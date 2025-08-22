@@ -132,7 +132,7 @@ def main():
     load_dotenv()
     st.set_page_config(
         page_title="PDF Oracle — Chat with Multiple PDFs",
-        page_icon="📚",
+        page_icon=":library:",
         layout="wide",
         initial_sidebar_state="expanded",
     )
