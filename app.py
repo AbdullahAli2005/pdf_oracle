@@ -1,6 +1,7 @@
-#!/usr/bin/env 
+#!/usr/bin/env
 import os
 import io
+import asyncio
 from typing import List, Tuple
 
 import streamlit as st
@@ -20,6 +21,13 @@ from langchain_google_genai import (
 from htmlTemplates import css, bot_template, user_template, app_header
 
 
+# --- Fix for "no current event loop" errors when using gRPC async clients ---
+try:
+    asyncio.get_running_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
+
+
 def file_digest(content: bytes) -> str:
     import hashlib
     return hashlib.sha1(content).hexdigest()[:10]
@@ -36,7 +44,7 @@ def prepare_pdfs(uploaded) -> List[dict]:
 def extract_documents(prepared) -> Tuple[List[Document], int]:
     docs: List[Document] = []
     total_pages = 0
-    #count pages
+    # count pages
     for item in prepared:
         reader = PdfReader(io.BytesIO(item["bytes"]))
         total_pages += len(reader.pages)
@@ -62,7 +70,7 @@ def extract_documents(prepared) -> Tuple[List[Document], int]:
     return docs, total_pages
 
 
-#chunking + vectorstore
+# chunking + vectorstore
 def chunk_documents(page_docs: List[Document], chunk_size: int, chunk_overlap: int) -> List[Document]:
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size,
@@ -74,11 +82,17 @@ def chunk_documents(page_docs: List[Document], chunk_size: int, chunk_overlap: i
 
 
 def build_vectorstore(chunked_docs: List[Document]):
+    # Ensure event loop exists before creating embeddings
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
     return FAISS.from_documents(documents=chunked_docs, embedding=embeddings)
 
 
-#LLM + chain
+# LLM + chain
 def build_chain(vectorstore, model_name: str, temperature: float, top_k: int):
     llm = ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
     memory = ConversationBufferMemory(
@@ -107,11 +121,12 @@ def render_sources(source_documents):
         src = meta.get("source", "PDF")
         page = meta.get("page", "?")
         chips.append(f'<span class="chip" title="Page {page}">{src} · p.{page}</span>')
-    #deduplicate keep order
+    # deduplicate keep order
     seen, uniq = set(), []
     for c in chips:
         if c not in seen:
-            uniq.append(c); seen.add(c)
+            uniq.append(c)
+            seen.add(c)
     st.markdown(
         f"""
         <div class="sources">
@@ -194,7 +209,7 @@ def main():
                 st.error("Please upload at least one PDF before processing.", icon="⚠️")
             else:
                 if os.getenv("GOOGLE_API_KEY") in (None, "", "your-key-here"):
-                    st.error("Missing GOOGLE_API_KEY. Set it in your environment or .env file.", icon="⚠️")
+                    st.error("Missing GOOGLE_API_KEY. Set it in your Streamlit secrets or .env file.", icon="⚠️")
                 else:
                     with st.spinner("Crunching your documents..."):
                         prepared = prepare_pdfs(uploaded)
@@ -209,7 +224,8 @@ def main():
                             st.session_state.conversation = chain
                             st.session_state.vector_ready = True
                             st.success(
-                                f"Indexed {len(prepared)} file(s), {total_pages} page(s) → {len(chunks)} chunk(s).", icon="✅"
+                                f"Indexed {len(prepared)} file(s), {total_pages} page(s) → {len(chunks)} chunk(s).",
+                                icon="✅",
                             )
                             st.balloons()
 
