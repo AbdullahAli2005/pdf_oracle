@@ -1,4 +1,3 @@
-#!/usr/bin/env
 import os
 import io
 import asyncio
@@ -21,7 +20,7 @@ from langchain_google_genai import (
 from htmlTemplates import css, bot_template, user_template, app_header
 
 
-# --- Fix for "no current event loop" errors when using gRPC async clients ---
+# fix for "no current event loop" errors when using gRPC async clients
 try:
     asyncio.get_running_loop()
 except RuntimeError:
@@ -44,7 +43,6 @@ def prepare_pdfs(uploaded) -> List[dict]:
 def extract_documents(prepared) -> Tuple[List[Document], int]:
     docs: List[Document] = []
     total_pages = 0
-    # count pages
     for item in prepared:
         reader = PdfReader(io.BytesIO(item["bytes"]))
         total_pages += len(reader.pages)
