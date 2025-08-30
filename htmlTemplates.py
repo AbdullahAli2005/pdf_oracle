@@ -1,5 +1,3 @@
-# UI templates & CSS for the Streamlit app
-
 css = '''
 <style>
 :root {
